@@ -3,6 +3,7 @@ import tempfile
 import streamlit as st
 from streamlit_chat import message
 from rag import ChatPDF
+import PyPDF2
 
 # For debug
 import traceback
@@ -55,6 +56,20 @@ def process_input():
         st.session_state["messages"].append((user_text, True))
         st.session_state["messages"].append((agent_text, False))
 
+def validate_pdf_content(file_path: str):
+    try:
+        # Implement a simple check to see if the PDF can be opened and read.
+        with open(file_path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            if len(reader.pages) == 0:
+                return False, "The PDF contains no readable pages."
+    except PyPDF2.errors.PdfReadError as e:
+        return False, f"PDF could not be read: {e}"
+    except Exception as e:
+        return False, f"Unexpected error: {e}"
+
+    return True, ""
+
 
 def read_and_save_file():
     try:
@@ -67,6 +82,12 @@ def read_and_save_file():
                 with tempfile.NamedTemporaryFile(delete=False) as tf:
                     tf.write(file.getbuffer())
                     file_path = tf.name
+
+                is_valid, validation_message = validate_pdf_content(file_path)
+                if not is_valid:
+                    st.error(validation_message)
+                    os.remove(file_path)
+                    continue
 
                 with st.session_state["ingestion_spinner"], \
                      st.spinner(f"Ingesting {file.name}"):
