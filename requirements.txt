@@ -6,3 +6,4 @@ pypdf
 fastembed
 notebook
 langchain-community
+PyPDF2
