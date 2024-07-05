@@ -4,6 +4,7 @@ import streamlit as st
 from streamlit_chat import message
 from rag import ChatPDF
 import PyPDF2
+from time import sleep
 
 # For debug
 import traceback
@@ -23,13 +24,13 @@ def display_messages():
     st.session_state["thinking_spinner"] = st.empty()
 
 
-
 def validate_input(input_text: str):
     if not input_text:
         return False, "Please enter a message."
     if len(input_text) < 3:
         return False, "Input is too short."
     return True, ""
+
 
 def process_input():
     """Handles new user input, queries the ChatPDF instance, and appends
@@ -77,11 +78,16 @@ def read_and_save_file():
         st.session_state["messages"] = []
         st.session_state["user_input"] = ""
 
-        for file in st.session_state["file_uploader"]:
+        total_files = len(st.session_state["file_uploader"])
+        st.write(f"Total files to process: {total_files}")  # Debug statement
+
+        for index, file in enumerate(st.session_state["file_uploader"], start=1):
             try:
                 with tempfile.NamedTemporaryFile(delete=False) as tf:
                     tf.write(file.getbuffer())
                     file_path = tf.name
+
+                st.write(f"Processing file: {file.name}")  # Debug statement
 
                 is_valid, validation_message = validate_pdf_content(file_path)
                 if not is_valid:
@@ -91,9 +97,16 @@ def read_and_save_file():
 
                 with st.session_state["ingestion_spinner"], \
                      st.spinner(f"Ingesting {file.name}"):
+                    progress_bar = st.progress(0)
+                    for i in range(100):
+                        sleep(0.05)     # Simulating ingestion progress
+                        progress_bar.progress(i+1)
                     st.session_state["assistant"].ingest(file_path)
             finally:
+                progress_bar.empty()
                 os.remove(file_path)
+
+            st.success(f"Successfully ingested {file.name} ({index}/{total_files})")
     except Exception as e:
         st.error(f"Failed to process the file: {e}")
         traceback.print_exc()  # for detailed debug information in the console
